@@ -24,6 +24,7 @@ Based on the user's request and the history of previously executed functions, de
 If the goal is complete and you have the result that you need call the finished function.
 If the input does not match any supported function call the finished function.
 If the input sounds like a conversation or the user just says thanks for the previous request call the finished function.
+If the user has given consent you can add the \`"consent": true\` to the parameter in the reply otherwise leave it false.
 
 Here is the list of supported functions:
 
@@ -31,15 +32,16 @@ ${generateExamples()}
 - finished: call this function with NO parameters when the user's goal is complete.
 
 Respond only with a valid JSON. Do not include comments, explanations, tabs, or extra spaces.
-{"function":"function_name","describe":"describe your intent in three words","parameter":"parameter_value or Leave empty string '' if no parameters"}`,
+{"function":"function_name","describe":"describe your intent in three words","parameter":"parameter_value or Leave empty string '' if no parameters","consent":false}`,
   format: {
     type: "object",
     properties: {
       function: { type: "string" },
       describe: { type: "string" },
-      parameter: { type: "string" }
+      parameter: { type: "string" },
+      consent: { type: "boolean" },
     },
-    required: ["function", "describe", "parameter"]
+    required: ["function", "describe", "parameter", "consent"]
   }
 };
 

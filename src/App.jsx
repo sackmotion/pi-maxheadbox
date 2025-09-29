@@ -5,7 +5,7 @@ import sample from 'lodash/sample';
 import 'animate.css';
 import config from './config.js';
 import utils from './utils.js';
-import { processTool } from './toolProcessor.js';
+import { processTool, isDangerous } from './toolProcessor.js';
 import SystemPrompt from './systemPrompt.js';
 import StatusMessage from './StatusMessage';
 import WordsContainer from './WordsContainer';
@@ -44,6 +44,8 @@ function App() {
 
   const screenSaverTimeoutRef = useRef(null);
   const randomQuestionTimeout = useRef(null);
+  const hasAskedPermissionRef = useRef(false);
+  const functionRecall = useRef(undefined);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const randomEngagement = useCallback(() => {
@@ -159,15 +161,25 @@ function App() {
     let lastCalledFunction = null;
     let consecutiveCallCount = 0;
 
-    globalAgentChatRef.current = [{
-      role: 'user',
-      content: userInput
-    }];
+    if (hasAskedPermissionRef.current) {
+      globalAgentChatRef.current.push({
+        role: 'user',
+        content: `The user has just replied to your previous request for tool execution consent: "${userInput}"\nBased on the user's last message, you MUST now call the function that was interrupted "${functionRecall.current}" and the following functions (if there were any other after that). You MUST include the correct 'consent' boolean parameter: true if they allowed it, false if they denied it.`
+      });
+    } else {
+      globalAgentChatRef.current = [{
+        role: 'user',
+        content: userInput
+      }];
+    }
 
     while (toolLoopGuard < 5) {
       toolLoopGuard++;
 
       try {
+
+        console.log('debug...');
+        console.log(globalAgentChatRef.current);
         const response = await ollama.chat({
           model: SystemPrompt.agent.modelName,
           messages: [{ role: 'user', content: SystemPrompt.agent.promptText }, ...globalAgentChatRef.current],
@@ -180,11 +192,19 @@ function App() {
         setShowFace(false);
 
         const toolCallMessage = response.message;
+
+        if (hasAskedPermissionRef.current) {
+          console.log('consenting?');
+          console.log(toolCallMessage);
+          hasAskedPermissionRef.current = false;
+        }
+
         globalAgentChatRef.current.push(toolCallMessage);
 
         const toolContent = JSON.parse(toolCallMessage.content);
         const functionName = toolContent?.function;
         const description = toolContent?.describe;
+        const consenting = toolContent?.consent;
 
         console.log(`🤖 Model wants to call: ${functionName}("${toolContent?.parameter}")`);
 
@@ -203,6 +223,18 @@ function App() {
 
         if (functionName.includes('finished')) {
           console.log("✅ Task finished.");
+          break;
+        }
+
+        const dangerous = isDangerous(toolContent);
+
+        if (dangerous && !hasAskedPermissionRef.current && !consenting) {
+          hasAskedPermissionRef.current = true;
+
+          functionRecall.current = `${toolContent.function}(${toolContent.parameter})`;
+
+          cumulativeResult = `Ask the user for permission to execute the tool: ${toolContent.function}(${toolContent.parameter}). The tool you must execute next, if consent is given, is: ${toolContent.function}`;
+
           break;
         }
 
@@ -229,14 +261,20 @@ function App() {
     setShowFace(true);
     setAppStatus(APP_STATUS.THINKING);
 
-    if (toolResult === undefined) {
-      setFace('reading');
-      processConversation(userInput, 'user');
+    console.log(hasAskedPermissionRef.current);
+
+    if (hasAskedPermissionRef.current) {
+      processConversation(cumulativeResult, 'system');
     } else {
-      setFace('love');
-      cumulativeResult = cumulativeResult || 'You executed no tasks';
-      const conversationPrompt = `User asked: ${userInput}.\n${cumulativeResult}, communicate the results with the user.`;
-      processConversation(conversationPrompt, 'user');
+      if (toolResult === undefined) {
+        setFace('reading');
+        processConversation(userInput, 'user');
+      } else {
+        setFace('love');
+        cumulativeResult = cumulativeResult || 'You executed no tasks';
+        const conversationPrompt = `User asked: ${userInput}.\n${cumulativeResult}, communicate the results with the user.`;
+        processConversation(conversationPrompt, 'user');
+      }
     }
   }, [processConversation]);
 

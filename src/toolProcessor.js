@@ -9,7 +9,8 @@ export const getToolsList = () => {
             name: tool.name,
             execution: tool.execution,
             params: tool.params,
-            description: tool.description
+            description: tool.description,
+            dangerous: tool.dangerous || false,
           };
         }
       });
@@ -18,11 +19,26 @@ export const getToolsList = () => {
         name: module.default.name,
         execution: module.default.execution,
         params: module.default.params,
-        description: module.default.description
+        description: module.default.description,
+        dangerous: module.default.dangerous || false,
       };
     }
     return acc;
   }, {});
+};
+
+export const isDangerous = (tool) => {
+  const toolsMap = getToolsList();
+
+  const functionName = tool.function || '';
+
+  const matchingTool = toolsMap[functionName];
+
+  if (matchingTool) {
+    return matchingTool.dangerous;
+  }
+
+  return undefined;
 };
 
 export const processTool = async (tool) => {
