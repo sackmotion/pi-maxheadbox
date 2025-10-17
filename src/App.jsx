@@ -161,16 +161,38 @@ function App() {
     let lastCalledFunction = null;
     let consecutiveCallCount = 0;
 
-    if (hasAskedPermissionRef.current) {
-      globalAgentChatRef.current.push({
-        role: 'user',
-        content: `The user has just replied to your previous request for tool execution consent: "${userInput}"\nBased on the user's last message, you MUST now call the function that was interrupted "${functionRecall.current}" and the following functions (if there were any other after that). You MUST include the correct 'consent' boolean parameter: true if they allowed it, false if they denied it. REMEMBER to set the consent back to false for the following functions.`
-      });
-    } else {
+    if (!hasAskedPermissionRef.current) {
       globalAgentChatRef.current = [{
         role: 'user',
         content: userInput
       }];
+    }
+
+    if (hasAskedPermissionRef.current) {
+      hasAskedPermissionRef.current = false;
+      const userGaveConsent = /(yes|ok|yeah|sure|yep)/i.test(userInput);
+
+      const recalledToolCall = JSON.parse(functionRecall.current);
+      functionRecall.current = undefined;
+
+      if (userGaveConsent) {
+        console.log("✅ User granted permission. Executing tool...");
+        setBackendResponse(prev => [...prev, `Permission granted. Executing ${recalledToolCall.function}...\n\n`]);
+
+        toolResult = await processTool({ ...recalledToolCall, consent: true });
+        cumulativeResult += `Task result: "${toolResult}"\n`;
+
+        globalAgentChatRef.current.push({
+          role: 'user',
+          content: `Task result for "${recalledToolCall.function}": "${toolResult}". Now continue with the original plan.`
+        });
+      } else {
+        console.log("❌ User denied permission.");
+        globalAgentChatRef.current.push({
+          role: 'user',
+          content: `The user has DENIED permission to execute the function "${recalledToolCall.function}". Acknowledge this and inform the user that you cannot proceed with that specific task.`
+        });
+      }
     }
 
     while (toolLoopGuard < 5) {
@@ -192,17 +214,11 @@ function App() {
         setShowFace(false);
 
         const toolCallMessage = response.message;
-
-        if (hasAskedPermissionRef.current) {
-          hasAskedPermissionRef.current = false;
-        }
-
         globalAgentChatRef.current.push(toolCallMessage);
 
         const toolContent = JSON.parse(toolCallMessage.content);
         const functionName = toolContent?.function;
         const description = toolContent?.describe;
-        const consenting = toolContent?.consent;
 
         console.log(`🤖 Model wants to call: ${functionName}("${toolContent?.parameter}")`);
 
@@ -225,13 +241,13 @@ function App() {
         }
 
         const dangerous = isDangerous(toolContent);
-
-        if (dangerous && !hasAskedPermissionRef.current && !consenting) {
+        if (dangerous && !hasAskedPermissionRef.current) {
+          console.log("🚨 Dangerous tool requires permission.");
           hasAskedPermissionRef.current = true;
 
-          functionRecall.current = `${toolContent.function}("${toolContent.parameter}")`;
+          functionRecall.current = JSON.stringify(toolContent);
 
-          cumulativeResult = `Ask the user for permission to execute the tool: ${toolContent.function}(${toolContent.parameter}). The tool you must execute next, if consent is given, is: ${toolContent.function}`;
+          cumulativeResult = `Ask the user for permission (they simply have to say YES or NO) to execute the tool: ${toolContent.function}(${toolContent.parameter}). The tool you must execute next, if consent is given, is: ${toolContent.function}`;
 
           break;
         }
