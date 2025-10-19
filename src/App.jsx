@@ -177,7 +177,7 @@ function App() {
 
       if (userGaveConsent) {
         console.log("✅ User granted permission. Executing tool...");
-        setBackendResponse(prev => [...prev, `Permission granted. Executing ${recalledToolCall.function}...\n\n`]);
+        setBackendResponse(prev => [...prev, `Permission granted!\n\nExecuting ${recalledToolCall.function}...\n\n`]);
 
         toolResult = await processTool({ ...recalledToolCall, consent: true });
         cumulativeResult += `Task result: "${toolResult}"\n`;
@@ -199,9 +199,6 @@ function App() {
       toolLoopGuard++;
 
       try {
-
-        console.log('debug...');
-        console.log(globalAgentChatRef.current);
         const response = await ollama.chat({
           model: SystemPrompt.agent.modelName,
           messages: [{ role: 'user', content: SystemPrompt.agent.promptText }, ...globalAgentChatRef.current],
