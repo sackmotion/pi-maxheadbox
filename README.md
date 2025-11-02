@@ -137,8 +137,8 @@ If you consider certain tools to be dangerous and want additional confirmation b
 ## Demos
 
 <p>
-  <a href='https://www.youtube.com/embed/ZnuXIrbRQiE'><img src="https://img.youtube.com/vi/ZnuXIrbRQiE/hqdefault.jpg" alt="demo video" height="300"/></a>
-  <a href='https://www.youtube.com/embed/JU2DVROyULY'><img src="https://img.youtube.com/vi/JU2DVROyULY/hqdefault.jpg" alt="confirmation flow" height="300"/></a>
+  <a href='https://www.youtube.com/watch?v=ZnuXIrbRQiE'><img src="https://img.youtube.com/vi/ZnuXIrbRQiE/hqdefault.jpg" alt="demo video" height="300"/></a>
+  <a href='https://www.youtube.com/watch?v=JU2DVROyULY'><img src="https://img.youtube.com/vi/JU2DVROyULY/hqdefault.jpg" alt="confirmation flow" height="300"/></a>
 </p>
 
 ## External resources
